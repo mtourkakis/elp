@@ -68,7 +68,7 @@ button:focus-visible,input:focus-visible,.opt:has(input:focus-visible){outline:3
       <h2>Before you start</h2>
       <ul class="rules">
         <li>Each recording plays <b>twice</b>. The second play starts 3 seconds after the first.</li>
-        <li>You can read the 5 questions before you press Play. You cannot replay, pause or rewind.</li><li>After the second play the correct answers are shown.</li>
+        <li>You can read the 5 questions before you press Play. You cannot replay, pause or rewind.</li><li>After the second play you see the correct answers. You can listen to the same recording again, or continue.</li>
         <li>Pass mark: <b>50%</b>. Use headphones in a quiet place.</li>
       </ul>
       <label for="name">Your name</label>
@@ -87,7 +87,7 @@ button:focus-visible,input:focus-visible,.opt:has(input:focus-visible){outline:3
     </div>
     <audio id="aud" preload="auto"></audio>
     <form id="qs"></form>
-    <div class="row"><span class="mute" id="hint"></span><button id="next" type="button" disabled>Next recording</button></div>
+    <div class="row"><span class="mute" id="hint"></span><span style="display:flex;gap:10px;flex-wrap:wrap"><button id="retry" class="ghost" type="button" hidden>↻ Listen again</button><button id="next" type="button" disabled>Next recording</button></span></div>
   </section>
 
   <section id="result" hidden>
@@ -133,7 +133,7 @@ function load(){
   $('l1').className='lamp';$('l2').className='lamp';
   $('play').hidden=false;$('play').disabled=false;
   $('radio').classList.remove('live');
-  $('next').disabled=true;$('hint').textContent='';
+  $('next').disabled=true;$('retry').hidden=true;$('hint').textContent='';
   $('qs').innerHTML=r.qs.map((q,i)=>`<fieldset class="q" style="border:0;padding:0;margin:18px 0 0"><h3>${i+1}. ${esc(q.q)}</h3>`+
     q.o.map((o,k)=>`<label class="opt"><input type="radio" name="q${i}" value="${k}"><span><b>${'ABCD'[k]}</b>&nbsp; ${esc(o)}</span><span class="mark"></span></label>`).join('')+`</fieldset>`).join('');
   aud.src='audio/'+r.id+'.mp3'; aud.load();
@@ -158,11 +158,12 @@ aud.addEventListener('ended',()=>{
       stage=2;$('l2').className='lamp on';$('lcdsub').textContent='Listening 2 of 2';$('radio').classList.add('live');startPlay();}},1000);
   }else{
     $('lcdsub').textContent='Listening finished — correct answers shown';
-    reveal(); $('next').disabled=false;
+    reveal(); $('next').disabled=false; $('retry').hidden=false;
   }
 });
 aud.addEventListener('error',()=>{$('lcdsub').textContent='Audio could not load — you can skip';$('next').disabled=false});
 $('qs').addEventListener('change',check);
+$('retry').addEventListener('click',()=>{aud.pause();load()});
 function reveal(){
   const r=test[cur]; let ok=0;
   r.qs.forEach((q,i)=>{$('qs').querySelectorAll(`input[name=q${i}]`).forEach(inp=>{const l=inp.closest('.opt');inp.disabled=true;l.classList.add('locked');const k=+inp.value;
