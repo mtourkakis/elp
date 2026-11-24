@@ -44,6 +44,8 @@ button:focus-visible,input:focus-visible,.opt:has(input:focus-visible){outline:3
 .opt{display:flex;gap:10px;align-items:center;min-height:46px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;margin:6px 0;cursor:pointer;background:var(--bg)}
 .opt input{width:20px;height:20px;accent-color:var(--mag);flex:none}
 .opt:has(input:checked){border-color:var(--mag);box-shadow:inset 0 0 0 1px var(--mag)}
+.opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,transparent)}.opt.locked{cursor:default}
+.mark{margin-left:auto;font-weight:700}.right .mark{color:var(--ok)}.wrong .mark{color:var(--bad)}
 .wait{border:1px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--mute);margin-top:18px}
 .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-top:20px}
 .score{font:700 clamp(56px,14vw,96px)/1 "Barlow Condensed",sans-serif}
@@ -66,7 +68,7 @@ button:focus-visible,input:focus-visible,.opt:has(input:focus-visible){outline:3
       <h2>Before you start</h2>
       <ul class="rules">
         <li>Each recording plays <b>twice</b>. The second play starts 3 seconds after the first.</li>
-        <li>The 5 questions appear after the first play. You cannot replay, pause or rewind.</li>
+        <li>You can read the 5 questions before you press Play. You cannot replay, pause or rewind.</li><li>After the second play the correct answers are shown.</li>
         <li>Pass mark: <b>50%</b>. Use headphones in a quiet place.</li>
       </ul>
       <label for="name">Your name</label>
@@ -84,8 +86,7 @@ button:focus-visible,input:focus-visible,.opt:has(input:focus-visible){outline:3
       <div class="lamps"><span class="lamp" id="l1">Listen 1</span><span class="lamp" id="l2">Listen 2</span><button id="play" type="button">▶ Play</button></div>
     </div>
     <audio id="aud" preload="auto"></audio>
-    <div class="wait" id="wait">The questions appear after the first listening.</div>
-    <form id="qs" hidden></form>
+    <form id="qs"></form>
     <div class="row"><span class="mute" id="hint"></span><button id="next" type="button" disabled>Next recording</button></div>
   </section>
 
@@ -132,9 +133,9 @@ function load(){
   $('l1').className='lamp';$('l2').className='lamp';
   $('play').hidden=false;$('play').disabled=false;
   $('radio').classList.remove('live');
-  $('wait').hidden=false;$('qs').hidden=true;$('next').disabled=true;$('hint').textContent='';
+  $('next').disabled=true;$('hint').textContent='';
   $('qs').innerHTML=r.qs.map((q,i)=>`<fieldset class="q" style="border:0;padding:0;margin:18px 0 0"><h3>${i+1}. ${esc(q.q)}</h3>`+
-    q.o.map((o,k)=>`<label class="opt"><input type="radio" name="q${i}" value="${k}"><span><b>${'ABCD'[k]}</b>&nbsp; ${esc(o)}</span></label>`).join('')+`</fieldset>`).join('');
+    q.o.map((o,k)=>`<label class="opt"><input type="radio" name="q${i}" value="${k}"><span><b>${'ABCD'[k]}</b>&nbsp; ${esc(o)}</span><span class="mark"></span></label>`).join('')+`</fieldset>`).join('');
   aud.src='audio/'+r.id+'.mp3'; aud.load();
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -152,17 +153,24 @@ $('play').addEventListener('click',()=>{
 aud.addEventListener('ended',()=>{
   $('radio').classList.remove('live'); $('l'+stage).className='lamp done';
   if(stage===1){
-    $('wait').hidden=true;$('qs').hidden=false;
     let left=GAP/1000; $('lcdsub').textContent='Second listening in '+left+'…';
     const t=setInterval(()=>{left--; if(left>0){$('lcdsub').textContent='Second listening in '+left+'…'}else{clearInterval(t);
       stage=2;$('l2').className='lamp on';$('lcdsub').textContent='Listening 2 of 2';$('radio').classList.add('live');startPlay();}},1000);
   }else{
-    $('lcdsub').textContent='Listening finished — answer the questions';
-    $('next').disabled=false; check();
+    $('lcdsub').textContent='Listening finished — correct answers shown';
+    reveal(); $('next').disabled=false;
   }
 });
 aud.addEventListener('error',()=>{$('lcdsub').textContent='Audio could not load — you can skip';$('next').disabled=false});
 $('qs').addEventListener('change',check);
+function reveal(){
+  const r=test[cur]; let ok=0;
+  r.qs.forEach((q,i)=>{$('qs').querySelectorAll(`input[name=q${i}]`).forEach(inp=>{const l=inp.closest('.opt');inp.disabled=true;l.classList.add('locked');const k=+inp.value;
+    if(k===q.a){l.classList.add('right');l.querySelector('.mark').textContent='✓'}else if(inp.checked){l.classList.add('wrong');l.querySelector('.mark').textContent='✗'}});
+    const c=$('qs').querySelector(`input[name=q${i}]:checked`); if(c&&+c.value===q.a)ok++});
+  $('hint').textContent=ok+' of '+r.qs.length+' correct';
+  $('next').textContent=cur===test.length-1?'Finish test':'Next recording';
+}
 function check(){
   const n=test[cur].qs.length, done=$('qs').querySelectorAll('input:checked').length;
   $('hint').textContent=done<n?(n-done)+' unanswered':'All answered';
