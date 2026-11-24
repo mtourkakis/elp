@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ELP Listening Practice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: calm, exam-room clear; one task per screen.
+   IDEA: an aviation chart sheet plus a COM radio head - the candidate "tunes in" to each recording.
+   PICTURE: the radio panel - big frequency-style readout, signal bars, listen 1/2 lamps.
+   COLOUR and TYPE: chart-paper white, chart ink, one Jeppesen magenta accent; Barlow Condensed numerals, Barlow text.
+   LAYOUT: one centred column up to 760px; panel on top, questions below; stacks naturally on phones. */
+:root{color-scheme:light dark;--bg:light-dark(#f7f8f4,#0f1416);--card:light-dark(#ffffff,#182024);--ink:light-dark(#111a1e,#e8eeec);--mute:light-dark(#5b676c,#93a2a6);--line:light-dark(#d9dfdb,#2a3439);--mag:light-dark(#b0127a,#ff5cc0);--ok:light-dark(#1f7a3d,#5fd38a);--bad:light-dark(#b3261e,#ff8a80);--panel:#0c1316;--lcd:#9dffb0}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Barlow,system-ui,sans-serif;overflow-x:clip}
+main{max-width:760px;margin:0 auto;padding:clamp(18px,4vw,40px) max(4vw,14px) 60px}
+h1{font:700 clamp(32px,6vw,48px)/1.05 "Barlow Condensed",sans-serif;margin:0 0 6px;text-wrap:balance}
+h2{font:700 26px/1.1 "Barlow Condensed",sans-serif;margin:0 0 12px}
+p{margin:0 0 12px}.mute{color:var(--mute)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:clamp(16px,3vw,26px);margin-top:18px}
+label{display:block;font-weight:600;margin:14px 0 6px}
+input[type=text]{width:100%;font:16px Barlow,sans-serif;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+button{font:600 17px Barlow,sans-serif;min-height:48px;padding:0 22px;border-radius:12px;border:0;background:var(--mag);color:#fff;cursor:pointer}
+button:disabled{opacity:.4;cursor:default}button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:focus-visible,input:focus-visible,.opt:has(input:focus-visible){outline:3px solid var(--mag);outline-offset:2px}
+.rules{margin:10px 0 0;padding-left:20px}.rules li{margin:4px 0}
+.radio{background:var(--panel);color:#cfe;border-radius:16px;padding:18px 20px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px 18px;align-items:center;box-shadow:inset 0 1px 0 #ffffff14,0 10px 24px #0003}
+.lcd{font:700 clamp(30px,8vw,46px)/1 "Barlow Condensed",sans-serif;color:var(--lcd);letter-spacing:.02em;text-shadow:0 0 12px #6f9}
+.lcdsub{font-size:14px;color:#8fb3a4;margin-top:4px}
+.lamps{display:flex;gap:8px;grid-column:1/-1;flex-wrap:wrap;align-items:center}
+.lamp{font:600 13px Barlow,sans-serif;padding:5px 11px;border-radius:99px;border:1px solid #2d4a40;color:#8fb3a4}
+.lamp.on{background:#2fd16f;color:#04170c;border-color:#2fd16f}.lamp.done{background:#1d3329;color:#cfe}
+.bars{display:flex;gap:4px;align-items:flex-end;height:38px}
+.bars i{width:6px;background:#2d4a40;border-radius:2px}
+.live .bars i{background:var(--lcd);animation:b 0.9s ease-in-out infinite alternate}
+.bars i:nth-child(2){animation-delay:.15s}.bars i:nth-child(3){animation-delay:.3s}.bars i:nth-child(4){animation-delay:.45s}.bars i:nth-child(5){animation-delay:.6s}
+@keyframes b{from{transform:scaleY(.35)}to{transform:scaleY(1)}}
+@media(prefers-reduced-motion:reduce){.live .bars i{animation:none}}
+.prog{height:6px;background:var(--line);border-radius:9px;overflow:hidden;margin:14px 0 4px}.prog b{display:block;height:100%;background:var(--mag)}
+.q{margin-top:18px}.q h3{font:600 17px/1.35 Barlow,sans-serif;margin:0 0 8px}
+.opt{display:flex;gap:10px;align-items:center;min-height:46px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;margin:6px 0;cursor:pointer;background:var(--bg)}
+.opt input{width:20px;height:20px;accent-color:var(--mag);flex:none}
+.opt:has(input:checked){border-color:var(--mag);box-shadow:inset 0 0 0 1px var(--mag)}
+.wait{border:1px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--mute);margin-top:18px}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-top:20px}
+.score{font:700 clamp(56px,14vw,96px)/1 "Barlow Condensed",sans-serif}
+.pass{color:var(--ok)}.fail{color:var(--bad)}
+.miss{border-top:1px solid var(--line);padding:12px 0}.miss small{color:var(--mute)}
+.tag{display:inline-block;font-size:13px;padding:2px 9px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <section id="start">
+    <h1>ELP Listening Practice</h1>
+    <p class="mute">Real ATC recordings. Listen, then answer — like the listening part of the English Language Proficiency check.</p>
+    <div class="radio" aria-hidden="true">
+      <div><div class="lcd">121.500</div><div class="lcdsub">Standby — 10 recordings · 50 questions</div></div>
+      <div class="bars"><i style="height:30%"></i><i style="height:50%"></i><i style="height:70%"></i><i style="height:85%"></i><i style="height:100%"></i></div>
+    </div>
+    <form class="card" id="startForm">
+      <h2>Before you start</h2>
+      <ul class="rules">
+        <li>Each recording plays <b>twice</b>. The second play starts 3 seconds after the first.</li>
+        <li>The 5 questions appear after the first play. You cannot replay, pause or rewind.</li>
+        <li>Pass mark: <b>50%</b>. Use headphones in a quiet place.</li>
+      </ul>
+      <label for="name">Your name</label>
+      <input type="text" id="name" autocomplete="name" placeholder="e.g. Nikos Papadopoulos">
+      <div class="row"><span class="mute" id="loadMsg">Loading questions…</span><button id="go" type="submit" disabled>Start test</button></div>
+    </form>
+  </section>
+
+  <section id="test" hidden>
+    <div class="row" style="margin-top:0"><span class="tag" id="who"></span><span class="tag" id="count"></span></div>
+    <div class="prog"><b id="progBar" style="width:0"></b></div>
+    <div class="radio" id="radio">
+      <div><div class="lcd" id="lcd">REC 01</div><div class="lcdsub" id="lcdsub">Press Play when ready</div></div>
+      <div class="bars" aria-hidden="true"><i style="height:30%"></i><i style="height:50%"></i><i style="height:70%"></i><i style="height:85%"></i><i style="height:100%"></i></div>
+      <div class="lamps"><span class="lamp" id="l1">Listen 1</span><span class="lamp" id="l2">Listen 2</span><button id="play" type="button">▶ Play</button></div>
+    </div>
+    <audio id="aud" preload="auto"></audio>
+    <div class="wait" id="wait">The questions appear after the first listening.</div>
+    <form id="qs" hidden></form>
+    <div class="row"><span class="mute" id="hint"></span><button id="next" type="button" disabled>Next recording</button></div>
+  </section>
+
+  <section id="result" hidden>
+    <h1 id="rTitle">Result</h1>
+    <div class="card">
+      <div class="score" id="rScore"></div>
+      <p id="rLine"></p>
+      <p class="mute" id="rMeta"></p>
+      <div class="row"><button id="again" type="button">New test</button></div>
+    </div>
+    <div class="card"><h2>Questions to review</h2><div id="rMiss"></div></div>
+  </section>
+</main>
+<script>
+{
+const N_REC=10, PASS=50, GAP=3000;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let bank=[], test=[], cur=0, answers=[], stage=0, name='';
+const aud=$('aud');
+
+fetch('questions.json').then(r=>r.json()).then(d=>{bank=d;$('loadMsg').textContent=d.length+' recordings in the bank';$('go').disabled=false})
+ .catch(()=>{$('loadMsg').textContent='Could not load the questions. Reload the page.'});
+try{$('name').value=localStorage.getItem('elpName')||''}catch(e){}
+
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+$('startForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  name=$('name').value.trim()||'Candidate';
+  try{localStorage.setItem('elpName',name)}catch(e){}
+  test=shuffle(bank).slice(0,N_REC); cur=0; answers=[];
+  $('start').hidden=true;$('result').hidden=true;$('test').hidden=false;$('who').textContent=name;
+  load();
+});
+
+function load(){
+  const r=test[cur]; stage=0;
+  $('count').textContent='Recording '+(cur+1)+' of '+test.length;
+  $('progBar').style.width=(cur/test.length*100)+'%';
+  $('lcd').textContent='REC '+String(cur+1).padStart(2,'0');
+  $('lcdsub').textContent='Press Play when ready';
+  $('l1').className='lamp';$('l2').className='lamp';
+  $('play').hidden=false;$('play').disabled=false;
+  $('radio').classList.remove('live');
+  $('wait').hidden=false;$('qs').hidden=true;$('next').disabled=true;$('hint').textContent='';
+  $('qs').innerHTML=r.qs.map((q,i)=>`<fieldset class="q" style="border:0;padding:0;margin:18px 0 0"><h3>${i+1}. ${esc(q.q)}</h3>`+
+    q.o.map((o,k)=>`<label class="opt"><input type="radio" name="q${i}" value="${k}"><span><b>${'ABCD'[k]}</b>&nbsp; ${esc(o)}</span></label>`).join('')+`</fieldset>`).join('');
+  aud.src='audio/'+r.id+'.mp3'; aud.load();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function startPlay(){
+  aud.currentTime=0;
+  const p=aud.play();
+  if(p&&p.catch)p.catch(()=>{$('lcdsub').textContent='Tap Play to continue';$('play').hidden=false;$('play').disabled=false;stage--});
+}
+$('play').addEventListener('click',()=>{
+  $('play').hidden=true; stage++;
+  $('l'+stage).className='lamp on'; $('lcdsub').textContent='Listening '+stage+' of 2'; $('radio').classList.add('live');
+  startPlay();
+});
+aud.addEventListener('ended',()=>{
+  $('radio').classList.remove('live'); $('l'+stage).className='lamp done';
+  if(stage===1){
+    $('wait').hidden=true;$('qs').hidden=false;
+    let left=GAP/1000; $('lcdsub').textContent='Second listening in '+left+'…';
+    const t=setInterval(()=>{left--; if(left>0){$('lcdsub').textContent='Second listening in '+left+'…'}else{clearInterval(t);
+      stage=2;$('l2').className='lamp on';$('lcdsub').textContent='Listening 2 of 2';$('radio').classList.add('live');startPlay();}},1000);
+  }else{
+    $('lcdsub').textContent='Listening finished — answer the questions';
+    $('next').disabled=false; check();
+  }
+});
+aud.addEventListener('error',()=>{$('lcdsub').textContent='Audio could not load — you can skip';$('next').disabled=false});
+$('qs').addEventListener('change',check);
+function check(){
+  const n=test[cur].qs.length, done=$('qs').querySelectorAll('input:checked').length;
+  $('hint').textContent=done<n?(n-done)+' unanswered':'All answered';
+  $('next').textContent=cur===test.length-1?'Finish test':'Next recording';
+}
+
+$('next').addEventListener('click',()=>{
+  aud.pause();
+  const r=test[cur];
+  r.qs.forEach((q,i)=>{const c=$('qs').querySelector(`input[name=q${i}]:checked`);answers.push({rec:r,q,pick:c?+c.value:-1})});
+  cur++; if(cur<test.length)load(); else finish();
+});
+
+function finish(){
+  $('test').hidden=true;$('result').hidden=false;
+  const right=answers.filter(a=>a.pick===a.q.a).length, tot=answers.length, pct=Math.round(right/tot*100), ok=pct>=PASS;
+  $('rTitle').textContent=ok?'Passed':'Not passed yet';
+  $('rScore').textContent=pct+'%'; $('rScore').className='score '+(ok?'pass':'fail');
+  $('rLine').textContent=name+' — '+right+' of '+tot+' correct. Pass mark '+PASS+'%.';
+  $('rMeta').textContent=new Date().toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})+' · This is a practice estimate, not the official ELP result.';
+  const miss=answers.filter(a=>a.pick!==a.q.a);
+  $('rMiss').innerHTML=miss.length?miss.map(a=>`<div class="miss"><small>${esc(a.rec.name)}${a.q.t?' · at '+esc(a.q.t):''}</small><div><b>${esc(a.q.q)}</b></div>`+
+    `<div class="fail">Your answer: ${a.pick<0?'—':esc(a.q.o[a.pick])}</div><div class="pass">Correct: ${esc(a.q.o[a.q.a])}</div></div>`).join(''):'<p>No mistakes. Well done.</p>';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+$('again').addEventListener('click',()=>{$('result').hidden=true;$('start').hidden=false});
+}
+</script>
+</body>
+</html>
