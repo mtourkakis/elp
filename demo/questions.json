@@ -1,0 +1,170 @@
+[
+ {
+  "id": "s1",
+  "name": "Thessaloniki Tower (KNV scenario)",
+  "qs": [
+   {
+    "q": "What heading is Olympic 612 given?",
+    "o": [
+     "210",
+     "120",
+     "201",
+     "Runway 16"
+    ],
+    "a": 0
+   },
+   {
+    "q": "What frequency is Macedonia Departure?",
+    "o": [
+     "128.0",
+     "120.8",
+     "120.6",
+     "Heading 210"
+    ],
+    "a": 1
+   },
+   {
+    "q": "On which runway is Sky Express 401 holding?",
+    "o": [
+     "16",
+     "28",
+     "10",
+     "QNH 1013"
+    ],
+    "a": 2
+   },
+   {
+    "q": "What delay should Sky Express 401 expect?",
+    "o": [
+     "3 minutes",
+     "5 minutes",
+     "Runway 10",
+     "2 minutes"
+    ],
+    "a": 3
+   },
+   {
+    "q": "What wind is given with the landing clearance?",
+    "o": [
+     "130 at 19, gusting 32",
+     "130 at 9, gusting 23",
+     "310 at 19, gusting 32",
+     "Runway 16"
+    ],
+    "a": 0
+   }
+  ]
+ },
+ {
+  "id": "s2",
+  "name": "Heraklion Ground (KNV scenario)",
+  "qs": [
+   {
+    "q": "Which runway is the aircraft cleared to taxi to?",
+    "o": [
+     "17",
+     "27",
+     "25",
+     "QNH 1013"
+    ],
+    "a": 1
+   },
+   {
+    "q": "What is the QNH?",
+    "o": [
+     "1031",
+     "1003",
+     "1013",
+     "Runway 27"
+    ],
+    "a": 2
+   },
+   {
+    "q": "What is the temperature?",
+    "o": [
+     "4",
+     "40",
+     "Taxiway Bravo",
+     "14"
+    ],
+    "a": 3
+   },
+   {
+    "q": "What is the taxi route?",
+    "o": [
+     "First left on Bravo, then right on Charlie",
+     "First right on Bravo, then left on Charlie",
+     "Left on Charlie, then right on Bravo",
+     "Heading 270"
+    ],
+    "a": 0
+   },
+   {
+    "q": "Which taxiway is closed?",
+    "o": [
+     "Bravo",
+     "Delta",
+     "Charlie",
+     "Runway 27"
+    ],
+    "a": 1
+   }
+  ]
+ },
+ {
+  "id": "s3",
+  "name": "Larnaca Tower (KNV scenario)",
+  "qs": [
+   {
+    "q": "What traffic is passing off the left, northbound?",
+    "o": [
+     "A Cessna 152",
+     "A Piper",
+     "A Cessna 172",
+     "Runway 22"
+    ],
+    "a": 2
+   },
+   {
+    "q": "What traffic is given to Wizz Air 512?",
+    "o": [
+     "An Airbus 320 on a 6-mile final",
+     "A Boeing 737 on a 3-mile final",
+     "QNH 1013",
+     "An Airbus 320 on a 3-mile final"
+    ],
+    "a": 3
+   },
+   {
+    "q": "What heading is Cyprus Airways 435 given on departure?",
+    "o": [
+     "205",
+     "250",
+     "220",
+     "Runway 22"
+    ],
+    "a": 0
+   },
+   {
+    "q": "What wind is given with the take-off clearance?",
+    "o": [
+     "220 at 12",
+     "240 at 12",
+     "240 at 20",
+     "Heading 205"
+    ],
+    "a": 1
+   },
+   {
+    "q": "Which frequency for Nicosia Control?",
+    "o": [
+     "124.7",
+     "122.4",
+     "124.2",
+     "Runway 22"
+    ],
+    "a": 2
+   }
+  ]
+ }
+]
