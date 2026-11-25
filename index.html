@@ -115,7 +115,7 @@ const aud=$('aud');
 
 /* ---- Subscription (active only with ?pay=1 or after a Stripe payment) ---- */
 const FREE=2, PRICE='€1.00 / month';
-const WORKER='';
+const WORKER='https://elp-pay.knvairaviationservicesltd.workers.dev';
 const PAYLINK='https://buy.stripe.com/test_5kQ6oI8YreXi4nT44Q7N600';
 const qp=new URLSearchParams(location.search);
 const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
