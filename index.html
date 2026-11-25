@@ -122,7 +122,7 @@ const qp=new URLSearchParams(location.search);
 const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 if(qp.has('pay')||qp.has('session_id'))ls.set('elpPay',qp.get('pay')==='0'?'0':'1');
 const PAY=ls.get('elpPay')==='1';
-let sub=false;
+let sub=false, cancelAt=null, keys={}, bankTotal=0;
 const freeUsed=()=>+(ls.get('elpFree')||0);
 const locked=()=>PAY&&!sub&&freeUsed()>=FREE;
 const api=path=>fetch(WORKER+path).then(r=>r.json());
@@ -138,13 +138,15 @@ function acct(){
   if(!PAY){$('acct').hidden=true;return}
   $('acct').hidden=false;
   const tok=ls.get('elpTok');
-  $('acct').innerHTML=sub?'Subscription active ✓ · Access code for your other devices: <code>'+esc(tok)+'</code>'
+  const until=cancelAt?new Date(cancelAt*1000).toLocaleDateString('en-GB',{dateStyle:'medium'}):'';
+  $('acct').innerHTML=sub?(cancelAt?'Subscription cancelled · access until '+until:'Subscription active ✓')+
+    ' · Access code for your other devices: <code>'+esc(tok)+'</code>'+(cancelAt?'':' · <a href="#" id="cancelSub">Cancel subscription</a>')
     :'Free trial: '+Math.max(0,FREE-freeUsed())+' of '+FREE+' recordings left';
 }
 function paywall(){ $('pw').hidden=!locked(); $('go').hidden=locked(); acct(); }
 async function checkSub(){
   const tok=ls.get('elpTok'); if(!tok||!WORKER)return false;
-  try{const d=await api('/check?token='+encodeURIComponent(tok)); sub=!!d.active}catch(e){}
+  try{const d=await api('/check?token='+encodeURIComponent(tok)); sub=!!d.active; cancelAt=d.cancelAt||null}catch(e){}
   return sub;
 }
 async function initPay(){
@@ -156,18 +158,33 @@ async function initPay(){
   }
   await checkSub(); paywall();
 }
+const ub=x=>Uint8Array.from(atob(x),c=>c.charCodeAt(0));
+async function dec(id,u8){
+  const k=await crypto.subtle.importKey('raw',ub(keys[id]),'AES-GCM',false,['decrypt']);
+  return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:u8.slice(0,12)},k,u8.slice(12)));
+}
+async function loadBank(){
+  if(!PAY){bank=await (await fetch('questions.json')).json(); bankTotal=bank.length; return}
+  const [b,f]=await Promise.all([fetch('enc/bank.json').then(r=>r.json()),fetch('enc/free.json').then(r=>r.json())]);
+  bankTotal=b.length; keys=f.keys;
+  if(sub){try{const d=await api('/keys?token='+encodeURIComponent(ls.get('elpTok'))+'&ids='+b.map(r=>r.id).join(',')); if(d.ok)keys=d.keys}catch(e){}}
+  bank=b.filter(r=>keys[r.id]);
+}
+function ready(){$('loadMsg').textContent=bankTotal+' recordings in the bank';$('go').disabled=false}
 document.addEventListener('click',async e=>{
+  if(e.target.id==='cancelSub'){e.preventDefault();
+    if(!confirm('Cancel your subscription? You keep access until the end of the month you have paid for.'))return;
+    try{const d=await api('/cancel?token='+encodeURIComponent(ls.get('elpTok'))); if(d.ok){cancelAt=d.cancelAt; acct()} else alert('Could not cancel. Please try again.')}catch(err){alert('Could not cancel. Please try again.')}
+    return}
   if(e.target.closest('.subBtn')){const em=ls.get('elpEmail'); location.href=PAYLINK+(em?'?prefilled_email='+encodeURIComponent(em):'');}
   const g=e.target.closest('.codeGo'); if(g){
     const box=g.closest('.pw'), code=box.querySelector('.codeIn').value.trim(), msg=box.querySelector('.codeMsg');
     if(!code)return; msg.textContent='Checking…'; ls.set('elpTok',code);
-    if(await checkSub()){msg.textContent='Access restored ✓'; paywall(); $('pw2').hidden=true}
+    if(await checkSub()){msg.textContent='Access restored ✓'; await loadBank(); ready(); paywall(); $('pw2').hidden=true}
     else msg.textContent='No active subscription found for this code.';
   }
 });
-initPay();
-
-fetch('questions.json').then(r=>r.json()).then(d=>{bank=d;$('loadMsg').textContent=d.length+' recordings in the bank';$('go').disabled=false})
+initPay().then(loadBank).then(ready)
  .catch(()=>{$('loadMsg').textContent='Could not load the questions. Reload the page.'});
 try{$('name').value=localStorage.getItem('elpName')||''}catch(e){}
 
@@ -183,19 +200,26 @@ $('startForm').addEventListener('submit',e=>{
   load();
 });
 
-function load(){
+async function load(){
   const r=test[cur]; stage=0;
   $('count').textContent='Recording '+(cur+1)+' of '+test.length;
   $('progBar').style.width=(cur/test.length*100)+'%';
   $('lcd').textContent='REC '+String(cur+1).padStart(2,'0');
   $('lcdsub').textContent='Press Play when ready';
   $('l1').className='lamp';$('l2').className='lamp';
-  $('play').hidden=false;$('play').disabled=false;
+  $('play').hidden=false;$('play').disabled=true;
   $('radio').classList.remove('live');
   $('next').disabled=true;$('retry').hidden=true;$('hint').textContent='';
+  try{
+    if(PAY&&!r.qs){$('lcdsub').textContent='Loading…'; r.qs=JSON.parse(new TextDecoder().decode(await dec(r.id,ub(r.q))))}
+  }catch(e){$('lcdsub').textContent='Recording could not load — you can skip';$('qs').innerHTML='';$('next').disabled=false;return}
   $('qs').innerHTML=r.qs.map((q,i)=>`<fieldset class="q" style="border:0;padding:0;margin:18px 0 0"><h3>${i+1}. ${esc(q.q)}</h3>`+
     q.o.map((o,k)=>`<label class="opt"><input type="radio" name="q${i}" value="${k}"><span><b>${'ABCD'[k]}</b>&nbsp; ${esc(o)}</span><span class="mark"></span></label>`).join('')+`</fieldset>`).join('');
-  aud.src='audio/'+r.id+'.mp3'; aud.load();
+  try{
+    if(PAY){ if(!r._u){const buf=new Uint8Array(await (await fetch('enc/'+r.id+'.bin')).arrayBuffer()); r._u=URL.createObjectURL(new Blob([await dec(r.id,buf)],{type:'audio/mpeg'}))} aud.src=r._u }
+    else aud.src='audio/'+r.id+'.mp3';
+    aud.load(); $('play').disabled=false; $('lcdsub').textContent='Press Play when ready';
+  }catch(e){$('lcdsub').textContent='Audio could not load — you can skip';$('next').disabled=false}
   window.scrollTo({top:0,behavior:'smooth'});
 }
 

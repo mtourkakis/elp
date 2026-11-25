@@ -1,5 +1,5 @@
 // ELP Listening Practice - subscription check (K.N.V. AIR AVIATION SERVICES LTD)
-// Secret needed in Cloudflare: STRIPE_SECRET_KEY
+// Secrets needed in Cloudflare: STRIPE_SECRET_KEY, ELP_MASTER
 const ORIGIN = 'https://mtourkakis.github.io';
 const enc = new TextEncoder();
 
@@ -14,11 +14,36 @@ function reply(body, status = 200) {
   });
 }
 
-async function stripe(env, path) {
+async function stripe(env, path, body) {
   const r = await fetch('https://api.stripe.com/v1/' + path, {
-    headers: { Authorization: 'Bearer ' + env.STRIPE_SECRET_KEY },
+    method: body ? 'POST' : 'GET',
+    headers: { Authorization: 'Bearer ' + env.STRIPE_SECRET_KEY,
+      'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
   });
   return r.json();
+}
+
+const b64 = u8 => btoa(String.fromCharCode(...u8));
+
+// Key that unlocks one recording (its audio and its questions)
+async function recKey(env, id) {
+  const raw = Uint8Array.from(atob(env.ELP_MASTER), c => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return b64(new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode('elp:' + id))));
+}
+
+// The customer behind an access code, or '' if the code is not genuine
+async function customerOf(env, tok) {
+  const i = tok.lastIndexOf('.');
+  const cus = tok.slice(0, i), sig = tok.slice(i + 1);
+  if (i < 0 || !/^cus_[A-Za-z0-9]+$/.test(cus) || sig !== await sign(env, cus)) return '';
+  return cus;
+}
+
+async function activeSub(env, cus) {
+  const subs = await stripe(env, 'subscriptions?status=all&limit=10&customer=' + cus);
+  return (subs.data || []).find(x => ['active', 'trialing', 'past_due'].includes(x.status));
 }
 
 async function sign(env, text) {
@@ -46,15 +71,28 @@ export default {
 
     // Every visit: is the subscription behind this access code still active?
     if (url.pathname === '/check') {
-      const tok = url.searchParams.get('token') || '';
-      const i = tok.lastIndexOf('.');
-      const cus = tok.slice(0, i), sig = tok.slice(i + 1);
-      if (i < 0 || !/^cus_[A-Za-z0-9]+$/.test(cus) || sig !== await sign(env, cus)) {
-        return reply({ active: false });
-      }
-      const subs = await stripe(env, 'subscriptions?status=all&limit=10&customer=' + cus);
-      const active = (subs.data || []).some(x => ['active', 'trialing', 'past_due'].includes(x.status));
-      return reply({ active });
+      const cus = await customerOf(env, url.searchParams.get('token') || '');
+      const sub = cus && await activeSub(env, cus);
+      return reply({ active: !!sub, cancelAt: sub ? sub.cancel_at || null : null });
+    }
+
+    // Subscribers only: the keys that unlock the recordings
+    if (url.pathname === '/keys') {
+      const cus = await customerOf(env, url.searchParams.get('token') || '');
+      if (!cus || !await activeSub(env, cus)) return reply({ ok: false }, 403);
+      const ids = (url.searchParams.get('ids') || '').split(',').filter(x => /^a\d{1,3}$/.test(x)).slice(0, 200);
+      const keys = {};
+      for (const id of ids) keys[id] = await recKey(env, id);
+      return reply({ ok: true, keys });
+    }
+
+    // Cancel: the subscription stays active until the end of the paid month
+    if (url.pathname === '/cancel') {
+      const cus = await customerOf(env, url.searchParams.get('token') || '');
+      const sub = cus && await activeSub(env, cus);
+      if (!sub) return reply({ ok: false });
+      const s = await stripe(env, 'subscriptions/' + sub.id, 'cancel_at_period_end=true');
+      return reply({ ok: !s.error, cancelAt: s.cancel_at || null });
     }
 
     return reply({ ok: true, service: 'elp-pay' });
