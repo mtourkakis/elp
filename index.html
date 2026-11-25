@@ -25,6 +25,7 @@ label{display:block;font-weight:600;margin:14px 0 6px}
 input[type=text]{width:100%;font:16px Barlow,sans-serif;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
 button{font:600 17px Barlow,sans-serif;min-height:48px;padding:0 22px;border-radius:12px;border:0;background:var(--mag);color:#fff;cursor:pointer}
 button:disabled{opacity:.4;cursor:default}button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.pw h2{margin-top:0}.pw input{margin:8px 0}.pw details{margin-top:14px}.acct{margin-top:10px}.acct code{word-break:break-all;font-size:13px}
 button:focus-visible,input:focus-visible,.opt:has(input:focus-visible){outline:3px solid var(--mag);outline-offset:2px}
 .rules{margin:10px 0 0;padding-left:20px}.rules li{margin:4px 0}
 .radio{background:var(--panel);color:#cfe;border-radius:16px;padding:18px 20px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px 18px;align-items:center;box-shadow:inset 0 1px 0 #ffffff14,0 10px 24px #0003}
@@ -64,6 +65,8 @@ button:focus-visible,input:focus-visible,.opt:has(input:focus-visible){outline:3
       <div><div class="lcd">121.500</div><div class="lcdsub">Standby — 10 recordings · 50 questions</div></div>
       <div class="bars"><i style="height:30%"></i><i style="height:50%"></i><i style="height:70%"></i><i style="height:85%"></i><i style="height:100%"></i></div>
     </div>
+    <p class="mute acct" id="acct" hidden></p>
+    <div class="card pw" id="pw" hidden></div>
     <form class="card" id="startForm">
       <h2>Before you start</h2>
       <ul class="rules">
@@ -98,6 +101,7 @@ button:focus-visible,input:focus-visible,.opt:has(input:focus-visible){outline:3
       <p class="mute" id="rMeta"></p>
       <div class="row"><button id="again" type="button">New test</button></div>
     </div>
+    <div class="card pw" id="pw2" hidden></div>
     <div class="card"><h2>Questions to review</h2><div id="rMiss"></div></div>
   </section>
 </main>
@@ -109,6 +113,59 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'
 let bank=[], test=[], cur=0, answers=[], stage=0, name='';
 const aud=$('aud');
 
+/* ---- Subscription (active only with ?pay=1 or after a Stripe payment) ---- */
+const FREE=2, PRICE='€1.00 / month';
+const WORKER='';
+const PAYLINK='https://buy.stripe.com/test_5kQ6oI8YreXi4nT44Q7N600';
+const qp=new URLSearchParams(location.search);
+const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+if(qp.has('pay')||qp.has('session_id'))ls.set('elpPay',qp.get('pay')==='0'?'0':'1');
+const PAY=ls.get('elpPay')==='1';
+let sub=false;
+const freeUsed=()=>+(ls.get('elpFree')||0);
+const locked=()=>PAY&&!sub&&freeUsed()>=FREE;
+const api=path=>fetch(WORKER+path).then(r=>r.json());
+const PW_HTML=`<h2>Your free recordings are used</h2>
+<p>Subscribe for unlimited practice: new tests every time, all recordings, answers and review after each one.</p>
+<p><b>${PRICE}</b></p>
+<p class="mute">Secure payment by card, Apple Pay or Google Pay (Stripe). Your invoice is issued by K.N.V. AIR AVIATION SERVICES LTD and sent to your email within 3 days.</p>
+<div class="row"><button type="button" class="subBtn">Subscribe</button></div>
+<details><summary>Already subscribed on another device?</summary>
+<input type="text" class="codeIn" placeholder="Paste your access code"><button type="button" class="ghost codeGo">Restore access</button> <span class="mute codeMsg"></span></details>`;
+$('pw').innerHTML=PW_HTML; $('pw2').innerHTML=PW_HTML;
+function acct(){
+  if(!PAY){$('acct').hidden=true;return}
+  $('acct').hidden=false;
+  const tok=ls.get('elpTok');
+  $('acct').innerHTML=sub?'Subscription active ✓ · Access code for your other devices: <code>'+esc(tok)+'</code>'
+    :'Free trial: '+Math.max(0,FREE-freeUsed())+' of '+FREE+' recordings left';
+}
+function paywall(){ $('pw').hidden=!locked(); $('go').hidden=locked(); acct(); }
+async function checkSub(){
+  const tok=ls.get('elpTok'); if(!tok||!WORKER)return false;
+  try{const d=await api('/check?token='+encodeURIComponent(tok)); sub=!!d.active}catch(e){}
+  return sub;
+}
+async function initPay(){
+  if(!PAY)return;
+  const sid=qp.get('session_id');
+  if(sid){
+    if(WORKER){try{const d=await api('/verify?session_id='+encodeURIComponent(sid)); if(d.ok){ls.set('elpTok',d.token); if(d.email)ls.set('elpEmail',d.email)}}catch(e){}}
+    history.replaceState(null,'',location.pathname);
+  }
+  await checkSub(); paywall();
+}
+document.addEventListener('click',async e=>{
+  if(e.target.closest('.subBtn')){const em=ls.get('elpEmail'); location.href=PAYLINK+(em?'?prefilled_email='+encodeURIComponent(em):'');}
+  const g=e.target.closest('.codeGo'); if(g){
+    const box=g.closest('.pw'), code=box.querySelector('.codeIn').value.trim(), msg=box.querySelector('.codeMsg');
+    if(!code)return; msg.textContent='Checking…'; ls.set('elpTok',code);
+    if(await checkSub()){msg.textContent='Access restored ✓'; paywall(); $('pw2').hidden=true}
+    else msg.textContent='No active subscription found for this code.';
+  }
+});
+initPay();
+
 fetch('questions.json').then(r=>r.json()).then(d=>{bank=d;$('loadMsg').textContent=d.length+' recordings in the bank';$('go').disabled=false})
  .catch(()=>{$('loadMsg').textContent='Could not load the questions. Reload the page.'});
 try{$('name').value=localStorage.getItem('elpName')||''}catch(e){}
@@ -117,6 +174,7 @@ function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor
 
 $('startForm').addEventListener('submit',e=>{
   e.preventDefault();
+  if(locked()){paywall();return}
   name=$('name').value.trim()||'Candidate';
   try{localStorage.setItem('elpName',name)}catch(e){}
   test=shuffle(bank).slice(0,N_REC); cur=0; answers=[];
@@ -182,7 +240,9 @@ $('next').addEventListener('click',()=>{
   aud.pause();
   const r=test[cur];
   r.qs.forEach((q,i)=>{const c=$('qs').querySelector(`input[name=q${i}]:checked`);answers.push({rec:r,q,pick:c?+c.value:-1})});
-  cur++; if(cur<test.length)load(); else finish();
+  cur++;
+  if(PAY&&!sub){ls.set('elpFree',freeUsed()+1); if(locked()){finish();return}}
+  if(cur<test.length)load(); else finish();
 });
 
 function finish(){
@@ -195,9 +255,10 @@ function finish(){
   const miss=answers.filter(a=>a.pick!==a.q.a);
   $('rMiss').innerHTML=miss.length?miss.map(a=>`<div class="miss"><small>${esc(a.rec.name)}${a.q.t?' · at '+esc(a.q.t):''}</small><div><b>${esc(a.q.q)}</b></div>`+
     `<div class="fail">Your answer: ${a.pick<0?'—':esc(a.q.o[a.pick])}</div><div class="pass">Correct: ${esc(a.q.o[a.q.a])}</div></div>`).join(''):'<p>No mistakes. Well done.</p>';
+  $('pw2').hidden=!locked();
   window.scrollTo({top:0,behavior:'smooth'});
 }
-$('again').addEventListener('click',()=>{$('result').hidden=true;$('start').hidden=false});
+$('again').addEventListener('click',()=>{$('result').hidden=true;$('start').hidden=false;paywall()});
 }
 </script>
 </body>
