@@ -121,8 +121,7 @@ const PAYLINK='https://buy.stripe.com/test_5kQ6oI8YreXi4nT44Q7N600';
 const qp=new URLSearchParams(location.search);
 const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
 if(qp.has('pay')||qp.has('session_id'))ls.set('elpPay',qp.get('pay')==='0'?'0':'1');
-const DEMO=qp.has('demo');
-const PAY=!DEMO&&ls.get('elpPay')==='1';
+const PAY=ls.get('elpPay')==='1';
 let sub=false, cancelAt=null, keys={}, bankTotal=0;
 const freeUsed=()=>+(ls.get('elpFree')||0);
 const locked=()=>PAY&&!sub&&freeUsed()>=FREE;
@@ -165,7 +164,7 @@ async function dec(id,u8){
   return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:u8.slice(0,12)},k,u8.slice(12)));
 }
 async function loadBank(){
-  if(!PAY){bank=await (await fetch(DEMO?'demo/questions.json':'questions.json')).json(); bankTotal=bank.length; return}
+  if(!PAY){bank=await (await fetch('questions.json')).json(); bankTotal=bank.length; return}
   const [b,f]=await Promise.all([fetch('enc/bank.json').then(r=>r.json()),fetch('enc/free.json').then(r=>r.json())]);
   bankTotal=b.length; keys=f.keys;
   if(sub){try{const d=await api('/keys?token='+encodeURIComponent(ls.get('elpTok'))+'&ids='+b.map(r=>r.id).join(',')); if(d.ok)keys=d.keys}catch(e){}}
@@ -218,7 +217,7 @@ async function load(){
     q.o.map((o,k)=>`<label class="opt"><input type="radio" name="q${i}" value="${k}"><span><b>${'ABCD'[k]}</b>&nbsp; ${esc(o)}</span><span class="mark"></span></label>`).join('')+`</fieldset>`).join('');
   try{
     if(PAY){ if(!r._u){const buf=new Uint8Array(await (await fetch('enc/'+r.id+'.bin')).arrayBuffer()); r._u=URL.createObjectURL(new Blob([await dec(r.id,buf)],{type:'audio/mpeg'}))} aud.src=r._u }
-    else aud.src=(DEMO?'demo/':'audio/')+r.id+'.mp3';
+    else aud.src='audio/'+r.id+'.mp3';
     aud.load(); $('play').disabled=false; $('lcdsub').textContent='Press Play when ready';
   }catch(e){$('lcdsub').textContent='Audio could not load — you can skip';$('next').disabled=false}
   window.scrollTo({top:0,behavior:'smooth'});
