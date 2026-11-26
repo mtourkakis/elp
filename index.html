@@ -55,6 +55,10 @@ button:focus-visible,input:focus-visible,.opt:has(input:focus-visible){outline:3
 .tag{display:inline-block;font-size:13px;padding:2px 9px;border-radius:99px;border:1px solid var(--line);color:var(--mute)}
 [hidden]{display:none!important}
 </style>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ELP Practice">
 </head>
 <body>
 <main>
@@ -77,6 +81,7 @@ button:focus-visible,input:focus-visible,.opt:has(input:focus-visible){outline:3
       </ul>
       <label for="name">Your name</label>
       <input type="text" id="name" autocomplete="name" placeholder="e.g. Nikos Papadopoulos">
+      <div class="row" id="offRow" hidden><button type="button" class="ghost" id="offBtn">⬇ Download all recordings for offline use</button> <span class="mute" id="offMsg"></span></div>
       <div class="row"><span class="mute" id="loadMsg">Loading questions…</span><button id="go" type="submit" disabled>Start test</button></div>
     </form>
   </section>
@@ -184,7 +189,29 @@ document.addEventListener('click',async e=>{
     else msg.textContent='No active subscription found for this code.';
   }
 });
-initPay().then(loadBank).then(ready)
+/* ---- Offline (owner only: open once with ?me=1) ---- */
+if(qp.has('me'))ls.set('elpMe',qp.get('me')==='0'?'':'1');
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+async function offStatus(){
+  if(!('caches' in window)||PAY)return;
+  const c=await caches.open('elp-offline-v1'); let n=0;
+  for(const r of bank) if(await c.match('audio/'+r.id+'.mp3',{ignoreSearch:true}))n++;
+  $('offMsg').textContent=n===bank.length?'Offline ready ✓ ('+n+' recordings)':(n?n+' of '+bank.length+' saved':'');
+}
+async function offDownload(){
+  const c=await caches.open('elp-offline-v1'); $('offBtn').disabled=true;
+  await c.addAll(['./','index.html','questions.json','manifest.json','icon-180.png']).catch(()=>{});
+  let n=0, fail=0;
+  for(const r of bank){
+    const url='audio/'+r.id+'.mp3';
+    if(!await c.match(url)){try{await c.add(url)}catch(e){fail++}}
+    n++; $('offMsg').textContent='Saving '+n+' of '+bank.length+'…';
+  }
+  $('offBtn').disabled=false; await offStatus();
+  if(fail)$('offMsg').textContent+=' · '+fail+' failed, press again';
+}
+$('offBtn').addEventListener('click',()=>offDownload());
+initPay().then(loadBank).then(ready).then(()=>{ if(!PAY&&ls.get('elpMe')==='1'){$('offRow').hidden=false; offStatus()} })
  .catch(()=>{$('loadMsg').textContent='Could not load the questions. Reload the page.'});
 try{$('name').value=localStorage.getItem('elpName')||''}catch(e){}
 
@@ -217,7 +244,7 @@ async function load(){
     q.o.map((o,k)=>`<label class="opt"><input type="radio" name="q${i}" value="${k}"><span><b>${'ABCD'[k]}</b>&nbsp; ${esc(o)}</span><span class="mark"></span></label>`).join('')+`</fieldset>`).join('');
   try{
     if(PAY){ if(!r._u){const buf=new Uint8Array(await (await fetch('enc/'+r.id+'.bin')).arrayBuffer()); r._u=URL.createObjectURL(new Blob([await dec(r.id,buf)],{type:'audio/mpeg'}))} aud.src=r._u }
-    else aud.src='audio/'+r.id+'.mp3';
+    else { if(!r._u){const b=await (await fetch('audio/'+r.id+'.mp3')).blob(); r._u=URL.createObjectURL(b)} aud.src=r._u }
     aud.load(); $('play').disabled=false; $('lcdsub').textContent='Press Play when ready';
   }catch(e){$('lcdsub').textContent='Audio could not load — you can skip';$('next').disabled=false}
   window.scrollTo({top:0,behavior:'smooth'});
